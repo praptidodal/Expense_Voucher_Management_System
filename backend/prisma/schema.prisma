@@ -1,0 +1,63 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  EMPLOYEE
+  DIRECTOR
+  ACCOUNTS
+}
+
+enum VoucherStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(EMPLOYEE)
+  department   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  vouchers     Voucher[]
+
+  @@map("users")
+}
+
+model Voucher {
+  id                    String        @id @default(uuid())
+  voucherNumber         String        @unique
+  employeeId            String
+  employee              User          @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  voucherDate           DateTime      @default(now())
+  expenseDate           DateTime
+  department            String
+  title                 String
+  category              String?
+  description           String?       @db.Text
+  amount                Decimal       @db.Decimal(12, 2)
+  employeeSignaturePath String?
+  status                VoucherStatus @default(DRAFT)
+  directorSignaturePath String?
+  approvalDate          DateTime?
+  rejectionReason       String?       @db.Text
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([expenseDate])
+  @@index([department])
+  @@map("vouchers")
+}

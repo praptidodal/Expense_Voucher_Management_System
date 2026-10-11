@@ -1,0 +1,25 @@
+
+# Dependencies
+node_modules/
+
+# Build output
+frontend/dist/
+backend/dist/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Uploads
+uploads/
+backend/uploads/
+
+# Editor
+.vscode/

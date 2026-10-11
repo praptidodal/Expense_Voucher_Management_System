@@ -23,3 +23,6 @@ backend/uploads/
 
 # Editor
 .vscode/
+
+# Confidential documentation
+docs/Full_Stack_Developer_Internship_Assignment_PSPL.pdf

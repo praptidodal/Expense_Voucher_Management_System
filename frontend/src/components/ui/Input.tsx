@@ -59,10 +59,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               transform: 'translateY(-50%)',
               display: 'flex',
               alignItems: 'center',
-              pointerEvents: 'none',
               color: 'var(--color-text-muted)',
+              zIndex: 1,
             }}
-            aria-hidden="true"
           >
             {rightIcon}
           </span>

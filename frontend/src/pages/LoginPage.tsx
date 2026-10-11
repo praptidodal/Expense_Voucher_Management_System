@@ -207,11 +207,13 @@ export const LoginPage: React.FC = () => {
                       style={{
                         background: 'none',
                         border: 'none',
-                        padding: 0,
+                        padding: '4px',
                         cursor: 'pointer',
                         color: 'var(--color-text-muted)',
-                        display: 'flex',
+                        display: 'inline-flex',
                         alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: 'var(--radius-sm)',
                       }}
                       title={showPassword ? 'Hide password' : 'Show password'}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}

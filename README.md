@@ -1,71 +1,75 @@
-# Expense Desk — Corporate Expense Voucher Management System
+# Expense Desk — Expense Voucher Management System
 
-Expense Desk is a full-stack corporate finance web application designed to digitize and govern the employee expense reimbursement lifecycle. The system enforces strict role-based access control (RBAC), end-to-end data integrity, cryptographic/digital signature capture, immutable post-submission records, and dedicated audit capabilities across three organizational roles: **Employee**, **Director**, and **Accounts**.
+Expense Desk is a full-stack web application for managing corporate employee expense reimbursement vouchers. It provides a structured workflow across three organizational roles: **Employee**, **Director**, and **Accounts**.
 
 ---
 
 ## Table of Contents
 
-1. [Project Overview & Problem Statement](#1-project-overview--problem-statement)
-2. [Role-Based Features](#2-role-based-features)
+1. [Project Overview](#1-project-overview)
+2. [Roles, Screens, and Permissions](#2-roles-screens-and-permissions)
 3. [Technology Stack](#3-technology-stack)
 4. [Prerequisites](#4-prerequisites)
-5. [Database Setup (MySQL)](#5-database-setup-mysql)
+5. [MySQL Database Setup](#5-mysql-database-setup)
 6. [Database Schema Documentation](#6-database-schema-documentation)
 7. [Environment Configuration](#7-environment-configuration)
-8. [Database Migrations & Seeding](#8-database-migrations--seeding)
+8. [Database Migrations and Seeding](#8-database-migrations-and-seeding)
 9. [Development Test Accounts](#9-development-test-accounts)
 10. [Running the Application](#10-running-the-application)
 11. [REST API Reference](#11-rest-api-reference)
-12. [Voucher Lifecycle & Validation Rules](#12-voucher-lifecycle--validation-rules)
-13. [Project Directory Structure](#13-project-directory-structure)
-14. [Known Limitations](#14-known-limitations)
+12. [Voucher Lifecycle and Validation Rules](#12-voucher-lifecycle-and-validation-rules)
+13. [Assumptions Made During Development](#13-assumptions-made-during-development)
+14. [Project Directory Structure](#14-project-directory-structure)
 
 ---
 
-## 1. Project Overview & Problem Statement
+## 1. Project Overview
 
-Manual and spreadsheet-based corporate expense management processes often suffer from:
-- Lack of auditability and lost physical receipts or signatures.
-- Missing approval hierarchies, allowing improper expense authorizations.
-- Accidental tampering with expense amounts and line items after submission.
-- Fragmented visibility between employees, approving executives, and finance auditors.
+Expense Desk addresses common challenges in manual expense management, including lost paperwork, missing authorization checks, untracked modifications, and lack of visibility across departments.
 
-**Expense Desk** addresses these challenges by implementing:
-- A multi-tier state machine (`DRAFT` → `SUBMITTED` → `APPROVED` / `REJECTED`).
-- Server-side immutability: once submitted, expense details cannot be modified or deleted.
-- Mandatory digital signature image capture (validated via magic bytes) for both employee submission and director approval.
-- Mandatory, audited rejection remarks when a claim is declined.
-- Segregated, role-specific workspaces preventing privilege escalation.
+The system provides:
+- A clear voucher status workflow: `DRAFT` → `SUBMITTED` → `APPROVED` / `REJECTED`.
+- Role-based access control ensuring users access only authorized screens and actions.
+- Mandatory signature image uploads for employee submission and director approval.
+- Mandatory rejection reason recording when a claim is declined.
+- Post-submission immutability: employee-entered details cannot be edited or deleted once submitted.
 
 ---
 
-## 2. Role-Based Features
+## 2. Roles, Screens, and Permissions
 
-### Employee Workspace (`/vouchers`)
-- **KPI Summary Cards (6):** Total Claims, Drafts, Pending Approval, Approved, Rejected Claims, and Total Amount Claimed.
-- **Draft Management:** Create, save, edit, and delete draft expense vouchers across multiple sessions.
-- **Signature Capture:** Upload a handwritten signature image (PNG or JPEG, up to 2 MB) before submission.
-- **Submission:** Validate all required fields and submit. The voucher transitions to `SUBMITTED` and becomes permanently locked against edits or deletions.
-- **Scoped Visibility:** Employees can access and view only their own expense claims.
-- **Filtering & Reset:** Filter vouchers by category with single-click reset.
+### Employee (`/vouchers`)
+- **Required Screens:**
+  - **Dashboard & My Vouchers (`/vouchers`):** Summary metrics, personal voucher list, status filters, search, and category filter.
+  - **Create Voucher (`/vouchers/new`):** Expense details entry, draft saving, signature image upload, and submission.
+  - **Voucher Details (`/vouchers/:id`):** View submitted voucher details, employee signature image, status, and rejection reason if applicable.
+  - **Edit Draft Voucher (`/vouchers/:id/edit`):** Edit existing draft vouchers prior to submission.
+- **Permissions:**
+  - Can view only their own vouchers.
+  - Can create, save, edit, and delete draft vouchers.
+  - Can submit draft vouchers with an uploaded signature image.
+  - Cannot edit or delete vouchers once submitted or decided.
 
-### Director Dashboard (`/director`)
-- **KPI Summary Cards (5):** Pending Approval Count, Approved Today, Rejected Today, Total Pending Amount, and Total Vouchers.
-- **Organization-Wide Review Queue:** Inspect all submitted vouchers across departments with employee details, receipt descriptions, and employee signature.
-- **Approval Workflow:** Approve claims with mandatory Director digital signature upload and recorded timestamp.
-- **Rejection Workflow:** Reject claims with mandatory structured rejection remarks.
-- **State Protection:** Terminal validation prevents re-approving, re-rejecting, or deciding on unsubmitted drafts.
-- **Multi-Criteria Search & Filter:** Filter by department, category, date range (`startDate` to `endDate`), amount range (`minAmount` to `maxAmount`), and keyword search.
-- **Recent Voucher Activity:** Instant quick-toggle view for recent organizational decisions.
+### Director (`/director`)
+- **Required Screens:**
+  - **Dashboard (`/director`):** Summary metrics (pending review, approved today, rejected today, pending amount, total vouchers).
+  - **Pending Approvals & All Vouchers (`/director`):** Organization-wide voucher list with status tabs, department, category, date, and amount range filters.
+  - **Voucher Details & Review (`/director/vouchers/:id`):** Review employee claim, inspect employee signature image, approve with director signature image, or reject with a reason.
+- **Permissions:**
+  - Can view all submitted vouchers across all employees and departments.
+  - Can approve submitted vouchers (requires director signature image upload).
+  - Can reject submitted vouchers (requires non-empty rejection reason).
+  - Cannot modify employee-entered voucher information.
+  - Cannot act on draft vouchers or re-decide already approved/rejected vouchers.
 
-### Accounts Workspace (`/accounts`)
-- **KPI Summary Cards (5):** Total Vouchers, Pending Approval, Approved Vouchers, Rejected Vouchers, and Total Approved Expense Amount.
-- **Audit & Reimbursement Inspection:** Unified read-only access to all vouchers across all statuses and departments.
-- **Signature & Audit Inspection:** Inspect employee signatures, director signatures, approval timestamps, and rejection reasons.
-- **Strict Read-Only Enforcement:** Accounts staff cannot create, edit, delete, submit, approve, or reject vouchers (guaranteed at both UI and API middleware levels).
-- **Advanced Filtering & Sorting:** Filter by status, department, category, date range, amount range, keyword search, and column sorting.
-- **Recent Approved Vouchers:** Quick-toggle view dedicated to recently approved claims ready for payout.
+### Accounts (`/accounts`)
+- **Required Screens:**
+  - **Dashboard (`/accounts`):** Summary metrics (total vouchers, pending approval, approved count, rejected count, total approved amount).
+  - **All Vouchers (`/accounts`):** Organization-wide auditing table with search, status, department, category, date range, and amount range filters.
+  - **Voucher Details (`/accounts/vouchers/:id`):** Read-only inspection of vouchers, including employee signature image, director signature image, approval date, and rejection reason.
+- **Permissions:**
+  - Read-only access across the entire organization.
+  - Cannot create, edit, delete, submit, approve, or reject vouchers.
 
 ---
 
@@ -73,43 +77,40 @@ Manual and spreadsheet-based corporate expense management processes often suffer
 
 | Layer | Technology | Version | Purpose |
 |---|---|---|---|
-| **Frontend Framework** | React | 19.2 | Component-driven user interface |
-| **Language (Frontend)** | TypeScript | 5.8+ | Strict client-side typing |
-| **Build Tool & Bundler** | Vite | 8.3 | Hot Module Replacement (HMR) and optimized production bundling |
-| **Routing** | React Router DOM | 7.18 | Role-based declarative routing and navigation guards |
-| **Icons & Styling** | Lucide React / Modern CSS | 1.55 | Corporate finance oatmeal/navy design system |
-| **Backend Runtime** | Node.js | 18+ (tested v24) | Server-side JavaScript runtime |
-| **Backend Framework** | Express | 4.21 | RESTful API routing and middleware pipeline |
-| **Language (Backend)** | TypeScript | 5.8+ | Server-side static typing and compile-time checks |
-| **ORM** | Prisma | 6.4 | Type-safe schema definition, migrations, and query generation |
-| **Database** | MySQL | 8.0+ | Relational persistence with ACID compliance |
-| **Authentication** | JWT (`jsonwebtoken`) | 9.0 | Stateless bearer token authentication (7-day validity) |
-| **Password Hashing** | `bcryptjs` | 3.0 | Salted password hashing (cost factor 10-12) |
-| **File Processing** | Node.js `fs` | Native | Base64 decode and magic-byte signature validation |
+| Frontend Framework | React | 19.2 | User interface components |
+| Language (Frontend) | TypeScript | 5.8+ | Static typing for client code |
+| Bundler & Dev Server | Vite | 8.3 | Build tool and development server |
+| Routing | React Router DOM | 7.18 | Client-side routing and protected route guards |
+| UI Icons & Styling | Lucide React / CSS | 1.55 | UI icons and custom responsive design system |
+| Backend Runtime | Node.js | 20.19+ or 22.12+ | Server execution environment |
+| Backend Framework | Express | 4.21 | RESTful API routing and middleware |
+| Language (Backend) | TypeScript | 5.8+ | Static typing for server code |
+| ORM | Prisma | 6.4 | Database schema management and queries |
+| Database | MySQL | 8.0+ | Relational data persistence |
+| Authentication | JSON Web Tokens (`jsonwebtoken`) | 9.0 | Stateless bearer token authentication |
+| Password Hashing | `bcryptjs` | 3.0 | Secure password hashing |
+| File Handling | Node.js `fs` | Native | Local storage and binary magic-byte validation |
 
 ---
 
 ## 4. Prerequisites
 
-Before setting up the project, ensure your environment has:
-- **Node.js:** v18.0.0 or later (recommended: Node.js LTS or v20+)
-- **npm:** v9.0.0 or later
-- **MySQL:** v8.0 or later running locally (or reachable over network)
+- **Node.js:** `20.19+` or `22.12+` (consistent with Vite 8 requirements)
+- **npm:** `10+`
+- **MySQL:** `8.0+` running locally or accessible via network
 
 ---
 
-## 5. Database Setup (MySQL)
+## 5. MySQL Database Setup
 
-Log in to your MySQL server (via MySQL CLI, MySQL Workbench, or your preferred client):
+Log in to MySQL and create the database:
 
 ```sql
--- Create database with utf8mb4 encoding
 CREATE DATABASE IF NOT EXISTS expense_voucher_db
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
--- Create/grant permissions to your application user (adjust credentials as needed)
-CREATE USER IF NOT EXISTS 'expense_user'@'localhost' IDENTIFIED BY 'your_secure_password';
+CREATE USER IF NOT EXISTS 'expense_user'@'localhost' IDENTIFIED BY 'your_password';
 GRANT ALL PRIVILEGES ON expense_voucher_db.* TO 'expense_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
@@ -118,143 +119,112 @@ FLUSH PRIVILEGES;
 
 ## 6. Database Schema Documentation
 
-The relational database schema is managed via Prisma ORM with MySQL. It consists of two relational models (`users`, `vouchers`) and two enums (`Role`, `VoucherStatus`).
+The database schema is defined in `backend/prisma/schema.prisma` and managed via Prisma migrations.
 
 ### 6.1 Enums
 
-#### `Role`
-| Value | Description |
-|---|---|
-| `EMPLOYEE` | Standard staff member; can author, edit drafts, and submit own vouchers |
-| `DIRECTOR` | Executive reviewer; can view all organization vouchers, approve with signature, or reject |
-| `ACCOUNTS` | Finance auditor; read-only access to all organization claims for verification |
-
-#### `VoucherStatus`
-| Value | Description |
-|---|---|
-| `DRAFT` | Editable work-in-progress voucher owned by the creating employee |
-| `SUBMITTED` | Locked voucher awaiting Director decision |
-| `APPROVED` | Terminal state; authorized by Director with signature and approval date |
-| `REJECTED` | Terminal state; declined by Director with mandatory rejection reason |
-
----
+- **`Role`:** `EMPLOYEE`, `DIRECTOR`, `ACCOUNTS`
+- **`VoucherStatus`:** `DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`
 
 ### 6.2 Table: `users` (Model: `User`)
 
-Stores identity credentials, organizational roles, and department assignments.
-
-| Field | Database Type | Nullable | Default | Description |
+| Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `id` | `VARCHAR(191)` | No | `uuid()` | Primary Key (UUID v4) |
-| `name` | `VARCHAR(191)` | No | None | Employee full name |
-| `email` | `VARCHAR(191)` | No | None | Unique login email address (`UNIQUE INDEX`) |
-| `passwordHash` | `VARCHAR(191)` | No | None | Bcrypt-hashed password |
-| `role` | `ENUM(Role)` | No | `'EMPLOYEE'` | Access role (`EMPLOYEE`, `DIRECTOR`, `ACCOUNTS`) |
-| `department` | `VARCHAR(191)` | Yes | `NULL` | Assigned organizational department |
+| `id` | `VARCHAR(191)` | No | `uuid()` | Primary Key |
+| `name` | `VARCHAR(191)` | No | — | User full name |
+| `email` | `VARCHAR(191)` | No | — | Unique login email (`UNIQUE INDEX`) |
+| `passwordHash` | `VARCHAR(191)` | No | — | Bcrypt password hash |
+| `role` | `ENUM(Role)` | No | `'EMPLOYEE'` | Role assignment |
+| `department` | `VARCHAR(191)` | Yes | `NULL` | Organizational department |
 | `createdAt` | `DATETIME(3)` | No | `now()` | Record creation timestamp |
-| `updatedAt` | `DATETIME(3)` | No | Auto-updated | Record modification timestamp |
+| `updatedAt` | `DATETIME(3)` | No | Auto | Record update timestamp |
 
 - **Primary Key:** `PRIMARY KEY (id)`
 - **Unique Constraints:** `UNIQUE INDEX (email)`
 - **Relationships:** One-to-many with `vouchers` (`User.vouchers` → `Voucher.employeeId`).
 
----
-
 ### 6.3 Table: `vouchers` (Model: `Voucher`)
 
-Stores expense voucher headers, line amounts, approval metadata, and file paths.
-
-| Field | Database Type | Nullable | Default | Description |
+| Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `id` | `VARCHAR(191)` | No | `uuid()` | Primary Key (UUID v4) |
-| `voucherNumber` | `VARCHAR(191)` | No | None | Sequential tracking code e.g. `EV-YYYYMMDD-XXXX` (`UNIQUE INDEX`) |
-| `employeeId` | `VARCHAR(191)` | No | None | Foreign Key referencing `users(id)` |
-| `voucherDate` | `DATETIME(3)` | No | `now()` | Date the voucher was created |
-| `expenseDate` | `DATETIME(3)` | No | None | Date the actual expense was incurred |
-| `department` | `VARCHAR(191)` | No | None | Department against which the claim is filed |
-| `title` | `VARCHAR(191)` | No | None | Brief title / summary of expense |
-| `category` | `VARCHAR(191)` | Yes | `NULL` | Expense category (Travel, Meals, Office Supplies, etc.) |
-| `description` | `TEXT` | Yes | `NULL` | Detailed business justification / notes |
-| `amount` | `DECIMAL(12, 2)` | No | None | Claimed expense amount in INR (positive value) |
-| `employeeSignaturePath` | `VARCHAR(191)` | Yes | `NULL` | Relative storage path to employee signature image |
-| `status` | `ENUM(VoucherStatus)` | No | `'DRAFT'` | Current workflow status (`DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`) |
-| `directorSignaturePath` | `VARCHAR(191)` | Yes | `NULL` | Relative storage path to director approval signature image |
-| `approvalDate` | `DATETIME(3)` | Yes | `NULL` | Timestamp when Director approved the voucher |
-| `rejectionReason` | `TEXT` | Yes | `NULL` | Mandatory remarks recorded upon rejection |
+| `id` | `VARCHAR(191)` | No | `uuid()` | Primary Key |
+| `voucherNumber` | `VARCHAR(191)` | No | — | Unique sequential number e.g. `EV-YYYYMMDD-XXXX` (`UNIQUE INDEX`) |
+| `employeeId` | `VARCHAR(191)` | No | — | Foreign Key referencing `users(id)` |
+| `voucherDate` | `DATETIME(3)` | No | `now()` | Voucher creation date |
+| `expenseDate` | `DATETIME(3)` | No | — | Date of expense |
+| `department` | `VARCHAR(191)` | No | — | Department for the claim |
+| `title` | `VARCHAR(191)` | No | — | Expense title |
+| `category` | `VARCHAR(191)` | Yes | `NULL` | Expense category |
+| `description` | `TEXT` | Yes | `NULL` | Business justification notes |
+| `amount` | `DECIMAL(12, 2)` | No | — | Claimed amount in INR (> 0) |
+| `employeeSignaturePath` | `VARCHAR(191)` | Yes | `NULL` | Path to employee signature image file |
+| `status` | `ENUM(VoucherStatus)` | No | `'DRAFT'` | Workflow status |
+| `directorSignaturePath` | `VARCHAR(191)` | Yes | `NULL` | Path to director signature image file |
+| `approvalDate` | `DATETIME(3)` | Yes | `NULL` | Approval timestamp |
+| `rejectionReason` | `TEXT` | Yes | `NULL` | Reason text if rejected |
 | `createdAt` | `DATETIME(3)` | No | `now()` | Record creation timestamp |
-| `updatedAt` | `DATETIME(3)` | No | Auto-updated | Record modification timestamp |
+| `updatedAt` | `DATETIME(3)` | No | Auto | Record update timestamp |
 
 - **Primary Key:** `PRIMARY KEY (id)`
 - **Unique Constraints:** `UNIQUE INDEX (voucherNumber)`
 - **Foreign Key:** `FOREIGN KEY (employeeId) REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE`
 - **Indexes:**
-  - `INDEX (employeeId)`: Fast lookup for employee's own vouchers.
-  - `INDEX (status)`: Fast filtering by voucher workflow state.
-  - `INDEX (expenseDate)`: Fast date-range queries.
-  - `INDEX (department)`: Fast department-level filtering.
+  - `INDEX (employeeId)`: Employee voucher lookups
+  - `INDEX (status)`: Status filtering
+  - `INDEX (expenseDate)`: Date range queries
+  - `INDEX (department)`: Department queries
 
 ---
 
 ## 7. Environment Configuration
 
-### 7.1 Backend Configuration (`backend/.env`)
+### Backend (`backend/.env`)
 
-Copy the template from `backend/.env.example`:
+Copy `backend/.env.example` to `backend/.env`:
 
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-Define values according to your local environment:
-
 ```env
-# Server Port & Environment
 PORT=5050
 NODE_ENV=development
-
-# Allowed CORS Origins (comma-separated frontend origins)
 CORS_ORIGIN=http://localhost:5173,http://localhost:5174,http://localhost:5175
-
-# MySQL Database Connection String
-DATABASE_URL="mysql://expense_user:your_secure_password@localhost:3306/expense_voucher_db"
-
-# JWT Authentication Secret
+DATABASE_URL="mysql://expense_user:your_password@localhost:3306/expense_voucher_db"
 JWT_SECRET=replace_with_a_secure_random_secret_in_production
 ```
 
-> **Security Note:** `backend/.env` is excluded by `.gitignore`. Never commit production credentials or production JWT secrets to source control.
+- `PORT`: Server port (default: `5050`).
+- `JWT_SECRET`: Secret key used for signing JWTs.
+- `JWT_EXPIRES_IN`: Optional token lifetime (defaults to `24h` if not set).
 
-### 7.2 Frontend Configuration (`frontend/.env`)
+### Frontend (`frontend/.env`)
 
-Copy the template from `frontend/.env.example`:
+Copy `frontend/.env.example` to `frontend/.env`:
 
 ```bash
 cp frontend/.env.example frontend/.env
 ```
 
 ```env
-# Base URL for Backend API
 VITE_API_BASE_URL=http://localhost:5050/api
 ```
 
 ---
 
-## 8. Database Migrations & Seeding
+## 8. Database Migrations and Seeding
 
-All commands below should be executed from the `backend/` directory:
+Run the following commands from the `backend/` directory:
 
-1. **Apply Prisma Migrations:**
+1. **Apply Migrations:**
    ```bash
    cd backend
    npx prisma migrate deploy
    ```
-   *(For development database prototyping, `npx prisma db push` may also be used.)*
-
-2. **Generate the Prisma Client:**
+2. **Generate Prisma Client:**
    ```bash
    npx prisma generate
    ```
-
 3. **Seed Initial Test Users:**
    ```bash
    npm run seed
@@ -264,10 +234,9 @@ All commands below should be executed from the `backend/` directory:
 
 ## 9. Development Test Accounts
 
-> ⚠️ **DEVELOPMENT AND LOCAL TESTING ONLY**  
-> The following accounts are provisioned exclusively for local verification and grading. In production deployments, change or remove these accounts.
+> **Development & Evaluation Only:** These test accounts are pre-seeded for local evaluation.
 
-| Role | Email Address | Password | Name | Department |
+| Role | Email | Password | Name | Department |
 |---|---|---|---|---|
 | `EMPLOYEE` | `employee@prachay.com` | `Password@123` | Aditi Sharma | Engineering |
 | `DIRECTOR` | `director@prachay.com` | `Password@123` | Rajesh Mehta | Executive Leadership |
@@ -277,226 +246,154 @@ All commands below should be executed from the `backend/` directory:
 
 ## 10. Running the Application
 
-### 10.1 Running the Backend
+### Backend
 
 ```bash
 cd backend
 npm install
-
-# Compile TypeScript
 npm run build
-
-# Start production server (port 5050)
 npm start
 ```
 
-*For local development with auto-reloading:*
+For development mode with hot reload:
 ```bash
 npm run dev
 ```
+The backend listens on `http://localhost:5050`.
 
-### 10.2 Running the Frontend
+### Frontend
 
 ```bash
 cd frontend
 npm install
-
-# Start Vite development server (port 5173 or next available)
 npm run dev
 ```
 
-*To build and preview the frontend for production:*
+For production build and preview:
 ```bash
 npm run build
 npm run preview
 ```
-
-Open your browser at `http://localhost:5173` (or the URL printed by Vite).
+The frontend listens on `http://localhost:5173` (or the next open Vite port).
 
 ---
 
 ## 11. REST API Reference
 
-All protected endpoints require an `Authorization: Bearer <token>` HTTP header containing a valid JWT.
+All protected routes require an `Authorization: Bearer <token>` header.
 
-### 11.1 Authentication Endpoints
+### Authentication
 
-| Method | Endpoint | Access | Purpose |
+| Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `POST` | `/api/auth/login` | Public | Authenticate with `{ email, password }`, returns JWT and user profile |
-| `GET` | `/api/auth/me` | Authenticated | Validate session and retrieve current authenticated user details |
+| `POST` | `/api/auth/login` | Public | Authenticates user; returns `{ token, user }` |
+| `GET` | `/api/auth/me` | Authenticated | Returns current authenticated user profile |
 
-### 11.2 Voucher Management Endpoints
+### Vouchers
 
-| Method | Endpoint | Required Role | Purpose |
+| Method | Endpoint | Role | Description |
 |---|---|---|---|
-| `GET` | `/api/vouchers/my` | `EMPLOYEE` | Retrieve all vouchers created by the authenticated employee |
-| `GET` | `/api/vouchers` | `DIRECTOR`, `ACCOUNTS` | Retrieve organization vouchers (supports query parameters below) |
-| `GET` | `/api/vouchers/:id` | Authenticated | Retrieve complete details of a single voucher (ownership enforced for employees) |
-| `POST` | `/api/vouchers` | `EMPLOYEE` | Create a voucher (body: `action: 'draft' \| 'submit'`) |
-| `PUT` | `/api/vouchers/:id` | `EMPLOYEE` | Update a `DRAFT` voucher (cannot modify submitted vouchers) |
-| `DELETE` | `/api/vouchers/:id` | `EMPLOYEE` | Delete a `DRAFT` voucher (cannot delete submitted vouchers) |
-| `POST` | `/api/vouchers/:id/submit` | `EMPLOYEE` | Submit a draft voucher for Director review (requires signature) |
-| `POST` | `/api/vouchers/:id/approve` | `DIRECTOR` | Approve submitted voucher with `{ directorSignaturePath }` |
-| `POST` | `/api/vouchers/:id/reject` | `DIRECTOR` | Reject submitted voucher with `{ rejectionReason }` |
+| `GET` | `/api/vouchers/my` | `EMPLOYEE` | List authenticated employee's vouchers |
+| `GET` | `/api/vouchers` | `DIRECTOR`, `ACCOUNTS` | List organization vouchers (supports query parameters) |
+| `GET` | `/api/vouchers/:id` | Authenticated | Retrieve voucher details (ownership enforced for Employee) |
+| `POST` | `/api/vouchers` | `EMPLOYEE` | Create voucher (`action: 'draft' \| 'submit'`) |
+| `PUT` | `/api/vouchers/:id` | `EMPLOYEE` | Update draft voucher |
+| `DELETE` | `/api/vouchers/:id` | `EMPLOYEE` | Delete draft voucher |
+| `POST` | `/api/vouchers/:id/submit` | `EMPLOYEE` | Submit draft voucher (requires signature) |
+| `POST` | `/api/vouchers/:id/approve` | `DIRECTOR` | Approve voucher (`{ directorSignaturePath }`) |
+| `POST` | `/api/vouchers/:id/reject` | `DIRECTOR` | Reject voucher (`{ rejectionReason }`) |
 
-#### Supported Query Parameters for `GET /api/vouchers`:
-- `search`: Keyword search matching voucher number, title, employee name, or department.
-- `status`: Filter by status (`DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`).
-- `department`: Filter by specific department name.
-- `category`: Filter by expense category (e.g., `Travel`, `Meals`, `Equipment`).
-- `startDate` & `endDate`: Filter by expense date range (`YYYY-MM-DD`).
-- `minAmount` & `maxAmount`: Filter by amount range.
-- `sortBy` & `sortOrder`: Sort by field (`expenseDate`, `amount`, `status`, `voucherNumber`) in `asc` or `desc` order.
+**Supported query parameters for `GET /api/vouchers`:**
+`search`, `status`, `department`, `category`, `startDate`, `endDate`, `minAmount`, `maxAmount`, `sortBy`, `sortOrder`.
 
-### 11.3 Digital Signature & File Endpoints
+### Signatures & Health
 
-| Method | Endpoint | Required Role | Purpose |
+| Method | Endpoint | Role | Description |
 |---|---|---|---|
-| `POST` | `/api/vouchers/upload-signature` | `EMPLOYEE`, `DIRECTOR` | Upload signature image payload as base64 data URL; returns stored relative path |
-| `GET` | `/api/signatures/:filename` | Authenticated | Securely retrieve uploaded signature image files |
-
-### 11.4 System Health Endpoint
-
-| Method | Endpoint | Access | Purpose |
-|---|---|---|---|
-| `GET` | `/api/health` | Public | System liveness probe returning status and server timestamp |
+| `POST` | `/api/vouchers/upload-signature` | `EMPLOYEE`, `DIRECTOR` | Upload base64 signature image; returns relative path |
+| `GET` | `/api/signatures/:filename` | Authenticated | Retrieve stored signature image file |
+| `GET` | `/api/health` | Public | Liveness probe returning `{ status, timestamp }` |
 
 ---
 
-## 12. Voucher Lifecycle & Validation Rules
+## 12. Voucher Lifecycle and Validation Rules
 
-### 12.1 Lifecycle State Machine
+### Lifecycle Workflow
 
 ```
-   ┌─────────────────────────────────────────────────────────┐
-   │                       EMPLOYEE                          │
-   │                                                         │
-   │  CREATE ──► [ DRAFT ] ◄───► EDIT / DELETE (Draft Only)  │
-   │               │                                         │
-   │               │ submit (validates fields + signature)   │
-   │               ▼                                         │
-   │         [ SUBMITTED ] (Permanently locked)              │
-   └───────────────┬─────────────────────────────────────────┘
-                   │
-                   │ DIRECTOR REVIEW
-                   ▼
-         ┌───────────────────┐
-         │                   │
-         ▼                   ▼
-   [ APPROVED ]        [ REJECTED ]
-   (Requires Director  (Requires mandatory
-    signature upload)   rejection reason)
+[ DRAFT ] ──(Submit with signature)──► [ SUBMITTED ]
+   │                                         │
+   ├─ Edit Draft                             ├─► [ APPROVED ] (with Director signature)
+   └─ Delete Draft                           └─► [ REJECTED ] (with Rejection reason)
 ```
 
-### 12.2 Validation Rules
+### Validation Rules
 
-1. **Expense Line Validation:**
-   - `title`: Mandatory non-empty string.
-   - `department`: Mandatory non-empty string.
-   - `expenseDate`: Mandatory valid ISO date.
-   - `amount`: Mandatory positive numeric value (`> 0.00`).
-2. **Submission Rule:**
-   - Must contain an uploaded `employeeSignaturePath`.
-   - Once submitted, employee-entered fields are strictly immutable across all roles.
-3. **Approval Rule:**
-   - Only `SUBMITTED` vouchers can be approved.
-   - Must include a valid `directorSignaturePath`.
-   - Transitions directly to terminal `APPROVED` status with timestamp.
-4. **Rejection Rule:**
-   - Only `SUBMITTED` vouchers can be rejected.
-   - Must include non-empty `rejectionReason` text.
-   - Transitions directly to terminal `REJECTED` status.
-5. **Signature Image Integrity:**
-   - Allowed formats: PNG (`89 50 4E 47`) and JPEG (`FF D8 FF`), verified by inspection of binary magic bytes.
-   - Maximum upload size: 2 MB.
-   - Filenames are generated server-side using secure UUIDs; client filenames are discarded.
-   - Files are stored in `backend/uploads/signatures/` and served through authenticated routes only.
+1. **Voucher Fields:** `title`, `department`, and `expenseDate` are mandatory. `amount` must be a positive number greater than 0.
+2. **Submission:** Requires an uploaded employee signature image. Once submitted, employee-entered fields are immutable.
+3. **Director Approval:** Allowed only on `SUBMITTED` vouchers; requires an uploaded director signature image.
+4. **Director Rejection:** Allowed only on `SUBMITTED` vouchers; requires a non-empty `rejectionReason`.
+5. **Signature Image Requirements:**
+   - Supported formats: PNG and JPEG only, verified via binary magic bytes (`89 50 4E 47` for PNG, `FF D8 FF` for JPEG).
+   - Maximum file size: 2 MB.
+   - Files are stored on the server filesystem in `backend/uploads/signatures/` with server-generated UUID names.
 
 ---
 
-## 13. Project Directory Structure
+## 13. Assumptions Made During Development
+
+1. **Draft Modifiability:** Employees may edit or delete vouchers only while in `DRAFT` status. Once submitted, vouchers cannot be edited or deleted by anyone.
+2. **Mandatory Signatures:** Employee signature image is required at submission; Director signature image is required at approval.
+3. **Mandatory Rejection Remarks:** Rejecting a voucher strictly requires a non-empty textual reason explaining the decision.
+4. **Local File Storage:** Uploaded signature images are stored locally on the server filesystem under `backend/uploads/signatures/`.
+5. **Token Lifetime:** JWT tokens default to `24h` expiration unless overridden by `JWT_EXPIRES_IN`.
+6. **Sequential Voucher Numbering:** Voucher numbers follow the format `EV-YYYYMMDD-XXXX`, where `XXXX` is a sequential zero-padded index for that date.
+7. **Development Credentials:** Pre-seeded test accounts and shared passwords (`Password@123`) are provided solely for development and evaluation.
+
+---
+
+## 14. Project Directory Structure
 
 ```
 Expense_Voucher_Management_System/
-├── .gitignore                      # Git exclusion rules
-├── README.md                       # Definitive documentation
+├── .gitignore
+├── README.md
 │
 ├── backend/
-│   ├── .env.example                # Backend environment template
-│   ├── package.json                # Backend dependencies & scripts
-│   ├── tsconfig.json               # Backend TypeScript configuration
+│   ├── .env.example
+│   ├── package.json
+│   ├── tsconfig.json
 │   ├── prisma/
-│   │   ├── schema.prisma           # Prisma relational schema
-│   │   ├── seed.ts                 # Test accounts seeder
-│   │   └── migrations/             # Versioned SQL migration history
+│   │   ├── schema.prisma
+│   │   ├── seed.ts
+│   │   └── migrations/
 │   └── src/
-│       ├── index.ts                # Server bootstrap & port listener
-│       ├── app.ts                  # Express app, middleware, route registration
+│       ├── app.ts
+│       ├── index.ts
 │       ├── config/
-│       │   └── env.ts              # Environment variable validation
-│       ├── db/
-│       │   └── prisma.ts           # PrismaClient database connection singleton
-│       ├── middleware/
-│       │   ├── auth.ts             # JWT authentication & requireRole guards
-│       │   └── errorHandler.ts     # Global HTTP error handler
-│       ├── routes/
-│       │   ├── auth.ts             # /api/auth routes
-│       │   ├── health.ts           # /api/health route
-│       │   └── voucher.ts          # /api/vouchers & /api/signatures routes
 │       ├── controllers/
-│       │   ├── auth.ts             # Login & session controller
-│       │   └── voucher.ts          # Voucher CRUD, decision, & signature handlers
+│       ├── db/
+│       ├── middleware/
+│       ├── routes/
 │       ├── types/
-│       │   └── auth.ts             # Auth & Express Request type definitions
 │       └── utils/
-│           └── voucherNumber.ts    # Sequential voucher number generator
 │
 └── frontend/
-    ├── .env.example                # Frontend environment template
-    ├── index.html                  # HTML shell
-    ├── package.json                # Frontend dependencies & scripts
-    ├── vite.config.ts              # Vite configuration
-    ├── tsconfig.json               # Frontend TypeScript configuration
+    ├── .env.example
+    ├── index.html
+    ├── package.json
+    ├── vite.config.ts
+    ├── tsconfig.json
     ├── public/
-    │   └── favicon.svg             # Application logo
     └── src/
-        ├── main.tsx                # React DOM root entry point
-        ├── App.tsx                 # Route declarations & role-based redirects
-        ├── index.css               # Global CSS reset
-        ├── styles/
-        │   └── theme.css           # Design tokens, color palette, responsive grid
+        ├── App.tsx
+        ├── main.tsx
+        ├── index.css
         ├── api/
-        │   └── voucherApi.ts       # Typed voucher API client methods
-        ├── config/
-        │   └── api.ts              # API base URL configuration
-        ├── context/
-        │   ├── AuthContext.tsx     # Session state, JWT storage, login/logout
-        │   ├── authContextDef.ts   # Context type definitions
-        │   └── useAuth.ts          # useAuth custom hook
-        ├── types/
-        │   ├── auth.ts             # User & Role types
-        │   └── voucher.ts          # Voucher, filter, & stats type definitions
         ├── components/
-        │   ├── layout/             # AppHeader, AppLayout, PageContainer, SectionHeader
-        │   ├── routing/            # ProtectedRoute role guard
-        │   ├── ui/                 # Button, Card, Badge, Input, Select, Textarea
-        │   └── vouchers/           # SignatureUploader, AuthenticatedSignatureImage
-        └── pages/
-            ├── LoginPage.tsx       # Corporate Sign In page
-            ├── NotFoundPage.tsx    # 404 handler
-            ├── employee/           # Voucher list, form, and detail views
-            ├── director/           # Review dashboard and approval/rejection views
-            └── accounts/           # Accounts audit dashboard and detail views
+        ├── config/
+        ├── context/
+        ├── pages/
+        ├── styles/
+        └── types/
 ```
-
----
-
-## 14. Known Limitations
-
-The following items are verified design boundaries of the current implementation:
-- **Local File Storage:** Uploaded signatures are stored on the local filesystem (`backend/uploads/signatures/`). A production cloud deployment with multiple server nodes would require an object storage service (such as AWS S3 or Google Cloud Storage).
-- **Stateless JWT Tokens:** Authentication tokens are stateless with a 7-day expiration. Revocation prior to expiration (e.g., immediate token blacklisting upon logout) is not implemented.
-- **Single-Page Table Loading:** All vouchers matching query filters are returned in a single response without cursor/offset pagination. For very large historical datasets, server-side pagination should be introduced.
-- **Email Notifications:** The application does not dispatch email notifications upon submission, approval, or rejection. Status changes are communicated via real-time dashboard queries.
-- **Transport Security:** Local development communicates over unencrypted HTTP. HTTPS termination via a reverse proxy (e.g., NGINX or Caddy) is required for production deployment.
